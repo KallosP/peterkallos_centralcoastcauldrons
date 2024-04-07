@@ -2,6 +2,7 @@ import os
 import dotenv
 from sqlalchemy import create_engine
 
+# Establishes a connection to the database setup in Supabase
 def database_connection_url():
     dotenv.load_dotenv()
 
