@@ -14,7 +14,7 @@ def get_catalog():
     # Open connection to DB 
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        # fethall: fetches all (or all remaining) rows of a query result set and returns a list of tuples
+        # fetchall: fetches all (or all remaining) rows of a query result set and returns a list of tuples
         rows = result.fetchall()
         # Store the row corresponding to the green potion 
         greenPotionRow = rows[0]
@@ -32,8 +32,8 @@ def get_catalog():
                     "name": "green potion",
                     # Dynamically set the quantity based on current value in table (on Supabase)
                     "quantity": greenPotionRow[1],
-                    # Dynamically set the price ""
-                    "price": greenPotionRow[3],
+                    # Amt I'm selling a green potion for
+                    "price": 50,
                     # Color green
                     "potion_type": [0, 100, 0, 0],
                 }
