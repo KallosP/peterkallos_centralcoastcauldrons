@@ -15,13 +15,7 @@ router = APIRouter(
 def get_inventory():
     """ """
 
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        # fetchall: fetches all (or all remaining) rows of a query result set and returns a list of tuples
-        rows = result.fetchall()
-        # Store the row corresponding to the green potion 
-        greenPotionRow = rows[0]
-        return {"number_of_potions": greenPotionRow[1], "ml_in_barrels": greenPotionRow[2], "gold": greenPotionRow[3]}
+    return {"number_of_potions": 0, "ml_in_barrels": 0, "gold": 0}
 
 # Gets called once a day
 @router.post("/plan")

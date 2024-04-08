@@ -4,6 +4,7 @@ from src import database as db
 
 router = APIRouter()
 
+# Catalog tells the bots what they can/cannot buy
 
 @router.get("/catalog/", tags=["catalog"])
 def get_catalog():
@@ -28,13 +29,16 @@ def get_catalog():
                 #    "potion_type": [100, 0, 0, 0],
                 #}
                 {
+
+                    # FIXME: correct sku?
                     "sku": "GREEN_POTION_0",
                     "name": "green potion",
                     # Dynamically set the quantity based on current value in table (on Supabase)
-                    "quantity": greenPotionRow[1],
+                    # Note: temporarily hardcoded to 1 to meet requirements for version 1, change back later to greenPotionRow[1]
+                    "quantity": 1, #greenPotionRow[1],
                     # Amt I'm selling a green potion for
                     "price": 50,
-                    # Color green
+                    # Color green. AKA selling green potions
                     "potion_type": [0, 100, 0, 0],
                 }
         ]
