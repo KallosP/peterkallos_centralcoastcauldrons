@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
@@ -98,18 +98,6 @@ class CartItem(BaseModel):
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """
 
-    # Check if inventory is empty or not 
-    # FIXME: Do i need this check?
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        # fetchall: fetches all (or all remaining) rows of a query result set and returns a list of tuples
-        rows = result.fetchall()
-        # Store the row corresponding to the green potion 
-        greenPotionRow = rows[0]
-        numGreenPotions = greenPotionRow[1]
-        if numGreenPotions <= 0:
-            return {"message: Out of stock"}
-
     return "OK"
 
 
@@ -120,8 +108,17 @@ class CartCheckout(BaseModel):
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
 
-    # Update table to reflect purchase
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions - {1}, gold = gold + {cart_checkout.payment} WHERE id = {1}"))
+        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+        rows = result.fetchall()
+        greenPotionRow = rows[0]
+        numGreenPotions = greenPotionRow[1]
 
-    return {"total_potions_bought": 1, "total_gold_paid": 50}
+        # Ensure it's in stock
+        if numGreenPotions <= 0:
+            # Respond with an error code if out of stock
+            return Response(content="Out of stock", status_code=400)
+
+        # Update table to reflect purchase
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions - {1}, gold = gold + {cart_checkout.payment} WHERE id = {1}"))
+        return {"total_potions_bought": 1, "total_gold_paid": 50}
