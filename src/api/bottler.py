@@ -15,46 +15,75 @@ class PotionInventory(BaseModel):
     potion_type: list[int]
     quantity: int
 
+# Deliver is where you're recieving the bot's response to what you requested in plan.
+# You have to update your table with the information that the bot is giving you b/c
+# that is the accurate data (the bot is like the bank)
 @router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
     """ """
     print(f"potions delievered: {potions_delivered} order_id: {order_id}")
 
-    # FIXME: Where to handle ml to potion conversion logic?
+    # Add bottles and subtract ml to databse. This is
+    # where you're actually editing the values in your table.
+    # Use the information stored in potions_delivered and change
+    # your database to reflect the same info that potions_delivered contains
 
-    # Mix all available green ml if any exists
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        # fetchall: fetches all (or all remaining) rows of a query result set and returns a list of tuples
-        rows = result.fetchall()
-        # Store the row corresponding to the green potion 
-        greenPotionRow = rows[0]
-        # Amount of green liquid
-        greenML = greenPotionRow[2]
-        # Bottle green potions until we're out of greenML
-        while greenML >= 100:
-            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions + {1}, num_green_ml = num_green_ml - {100} WHERE id = {1}"))
-            greenML -= 100
+    # Parse/store recieved data
+    for potion in potions_delivered:
+        # If a green potion
+        if potion.potion_type[1] == 100:
+            print("executing")
+            # Update database
+            with db.engine.begin() as connection:
+                connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions + {potion.quantity}, num_green_ml = num_green_ml - {potion.quantity * 100} WHERE id = {1}"))
+        # If not a green potion, ignore for now
 
-
-        
     return "OK"
 
+# Plan is where you're VIEWING what you have in your table and your intended course of action is what you're returning
 @router.post("/plan")
 def get_bottle_plan():
     """
     Go from barrel to bottle.
     """
 
+    # Query your database to see how much ml you have and if it's
+    # possible to convert/make potions, if it's possible, return
+    # how much you need/want. If you don't have enough, then just
+    # return an empty amount
+
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+        # fetchall: fetches all (or all remaining) rows of a query result set and returns a list of tuples
+        rows = result.fetchall()
+        # Store the row corresponding to the green potion 
+        greenPotionRow = rows[0]
+        greenML = greenPotionRow[2]
+        if greenML >= 100:
+            numPotions = 0
+            # Bottle green potions until we're out of greenML
+            while greenML >= 100:
+                # Subtract ml and add potions
+                greenML -= 100
+                numPotions += 1
+            # Request green potions
+            return[
+                {
+                    "potion_type": [0, 100, 0, 0],
+                    "quantity": numPotions,
+                }
+            ]
+        else:
+            # Don't request anything
+            return[
+                {
+                    "potion_type": [0, 0, 0, 0],
+                    "quantity": 0,
+                }
+            ]
+
     
-    # Bottle all barrels into green potions
-    return[
-        {
-            "potion_type": [0, 100, 0, 0],
-            # FIXME: calculate quantity based on num greenML ?
-            "quantity": 5,
-        }
-    ]
+    
 
     # Each bottle has a quantity of what proportion of red, blue, and
     # green potion to add.
