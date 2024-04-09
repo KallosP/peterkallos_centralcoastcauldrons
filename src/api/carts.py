@@ -117,7 +117,8 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         # Ensure it's in stock
         if numGreenPotions <= 0:
             # Respond with an error code if out of stock
-            return Response(content="Out of stock", status_code=400)
+            return []
+            #return Response(content="Out of stock", status_code=400)
 
         # Update table to reflect purchase
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions - {1}, gold = gold + {cart_checkout.payment} WHERE id = {1}"))
