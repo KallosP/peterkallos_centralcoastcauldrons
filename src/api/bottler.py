@@ -74,12 +74,7 @@ def get_bottle_plan():
             ]
         else:
             # Don't request anything
-            return[
-                {
-                    "potion_type": [0, 0, 0, 0],
-                    "quantity": 0,
-                }
-            ]
+            return[]
 
     
     
