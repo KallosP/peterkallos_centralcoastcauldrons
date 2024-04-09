@@ -42,7 +42,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     """ """
     print(wholesale_catalog)
 
-    # if num potions in inventory is less than 10, purchase small green barrel
+    makePurchase = False
+
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         # fetchall: fetches all (or all remaining) rows of a query result set and returns a list of tuples
@@ -50,8 +51,16 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         # Store the row corresponding to the green potion 
         greenPotionRow = rows[0]
         numGreenPotions = greenPotionRow[1]
+        numGold = greenPotionRow[3]
+
         print(numGreenPotions)
-        if numGreenPotions < 10:
+
+        for barrel in wholesale_catalog:
+            if barrel.sku == "SMALL_GREEN_BARREL" and numGold >= barrel.price and numGreenPotions < 10:
+                makePurchase = True
+
+        # Only make a purchase if it's a small green barrel, you have sufficient funds, and less than 10 potions
+        if makePurchase:
             return [
                 {
                     #FIXME: correct name of sku?
@@ -61,10 +70,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 }
             ]
 
-    return [
-            {
-                "sku": "",
-                "quantity": 0
-            }
-        ]
+    # Don't make a purchase
+    return []
 
