@@ -22,7 +22,7 @@ class Barrel(BaseModel):
 @router.post("/deliver/{order_id}")
 def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     """ """
-    #print(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
+    print(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
 
     for barrel in barrels_delivered:
         # TODO: (CHANGE LATER for future versions) filter out all other barrels
@@ -54,6 +54,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         if numGreenPotions < 10:
             return [
                 {
+                    #FIXME: correct name of sku?
                     "sku": "SMALL_GREEN_BARREL",
                     # FIXME: how many to buy?
                     "quantity": 1
