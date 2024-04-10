@@ -33,7 +33,8 @@ def get_catalog():
                         # Note: temporarily hardcoded to 1 to meet requirements for version 1, change back later to greenPotionRow[1]
                         "quantity": 1, #greenPotionRow[1],
                         # Amt I'm selling a green potion for
-                        "price": 50,
+                        # TODO: change back to 50, just 1 temporarily for testing
+                        "price": 1,
                         # Color green. AKA selling green potions
                         "potion_type": [0, 100, 0, 0],
                     }
