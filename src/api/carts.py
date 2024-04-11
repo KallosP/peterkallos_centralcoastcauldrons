@@ -122,6 +122,6 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
             return Response(content="Out of stock", status_code=400)
 
         # Update table to reflect purchase
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions - {1}, gold = gold + {cart_checkout.payment} WHERE id = {1}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions - {1}, gold = gold + {50} WHERE id = {1}"))
         print("Returning from cart/checkout function normally, error response not triggered")
         return {"total_potions_bought": 1, "total_gold_paid": 50}
