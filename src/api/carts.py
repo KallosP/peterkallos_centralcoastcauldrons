@@ -4,6 +4,10 @@ from src.api import auth
 from enum import Enum
 import sqlalchemy
 from src import database as db
+import uuid
+
+# dictionary for carts: key = random id, value = list[Customer, desiredPotion, quantity] 
+carts = {}
 
 router = APIRouter(
     prefix="/carts",
@@ -87,7 +91,14 @@ def post_visits(visit_id: int, customers: list[Customer]):
 @router.post("/")
 def create_cart(new_cart: Customer):
     """ """
-    return {"cart_id": 1}
+
+    unique_ID = int(uuid.uuid4())
+
+    carts[unique_ID] = [new_cart, "", 0]
+
+    print("Current carts: " + str(carts))
+
+    return {"cart_id": unique_ID}
 
 
 class CartItem(BaseModel):
@@ -98,7 +109,23 @@ class CartItem(BaseModel):
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """
 
+    # Check if you have that item_sku 
+    if item_sku == "RED_POTION_0":
+        potionToSell = "num_red_potions"
+    elif item_sku == "GREEN_POTION_0":
+        potionToSell = "num_green_potions"
+    elif item_sku == "BLUE_POTION_0":
+        potionToSell = "num_blue_potions"
+    else:
+        return Response(content="Invalid item_sku. Returned from set_item_quantity PK", status_code=400)
+
+    # NOTE: this sets the desired potion of the customer from "" to 'potionToSell'
+    carts[cart_id][1] = potionToSell
+    # Store the amount the customer wants to buy
+    carts[cart_id][2] = cart_item.quantity
+
     return "OK"
+
 
 
 class CartCheckout(BaseModel):
@@ -107,21 +134,19 @@ class CartCheckout(BaseModel):
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
+    # Get the potion type to update in the table
+    potionColumnToUpdate = carts[cart_id][1]
+    print("potionColumnToUpdate: " + potionColumnToUpdate)
+    # Get num potions bought
+    numPotionsBought = carts[cart_id][2]
+    print("numPotionsBought: " + str(numPotionsBought))
+    # Get the amount of gold the customer paid (as an int)
+    goldPaid = int(cart_checkout.payment)
+    print("goldPaid: " + str(goldPaid))
 
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        rows = result.fetchall()
-        greenPotionRow = rows[0]
-        numGreenPotions = greenPotionRow[1]
-
-        print("Num Potions From Checkout Before Purchase: " + str(numGreenPotions))
-        # Ensure it's in stock
-        if numGreenPotions <= 0:
-            print("Entered error response")
-            # Respond with an error code if out of stock
-            return Response(content="Out of stock", status_code=400)
-
         # Update table to reflect purchase
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions - {1}, gold = gold + {50} WHERE id = {1}"))
-        print("Returning from cart/checkout function normally, error response not triggered")
-        return {"total_potions_bought": 1, "total_gold_paid": 50}
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potionColumnToUpdate} = {potionColumnToUpdate} - {numPotionsBought}, gold = gold + {goldPaid} WHERE id = {1}"))
+    
+    print("Returning from cart/checkout function normally, error response not triggered")
+    return {"total_potions_bought": numPotionsBought, "total_gold_paid": goldPaid}

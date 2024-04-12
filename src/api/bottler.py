@@ -28,14 +28,23 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     # Use the information stored in potions_delivered and change
     # your database to reflect the same info that potions_delivered contains
 
-    # Parse/store recieved data
-    for potion in potions_delivered:
-        # If a green potion
-        if potion.potion_type[1] == 100:
-            # Update database
-            with db.engine.begin() as connection:
+    with db.engine.begin() as connection:
+        # Parse/store recieved data
+        for potion in potions_delivered:
+            # If a red potion
+            if potion.potion_type[0] == 100:
+                # Update database
+                connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = num_red_potions + {potion.quantity}, num_red_ml = num_red_ml - {potion.quantity * 100} WHERE id = {1}"))
+
+            # If a green potion
+            if potion.potion_type[1] == 100:
+                # Update database
                 connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions + {potion.quantity}, num_green_ml = num_green_ml - {potion.quantity * 100} WHERE id = {1}"))
-        # If not a green potion, ignore for now
+
+            # If a blue potion
+            if potion.potion_type[2] == 100:
+                # Update database
+                connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_potions = num_blue_potions + {potion.quantity}, num_blue_ml = num_blue_ml - {potion.quantity * 100} WHERE id = {1}"))
 
     return "OK"
 
@@ -56,26 +65,42 @@ def get_bottle_plan():
         # fetchall: fetches all (or all remaining) rows of a query result set and returns a list of tuples
         rows = result.fetchall()
         # Store the row corresponding to the green potion 
-        greenPotionRow = rows[0]
-        greenML = greenPotionRow[2]
+        potionRow = rows[0]
+
+        redML = potionRow[5]
+        greenML = potionRow[2]
+        blueML = potionRow[7]
+
+        bottle_plan = []
+
+        print(greenML)
+
+        if redML >= 100:
+            bottle_plan.append(
+                {
+                    "potion_type": [100, 0, 0, 0],
+                    # // rounds down to an integer
+                    "quantity": (redML // 100),
+                }
+            )
         if greenML >= 100:
-            numPotions = 0
-            # Bottle green potions until we're out of greenML
-            while greenML >= 100:
-                # Subtract ml and add potions
-                greenML -= 100
-                numPotions += 1
-            # Request green potions
-            return[
+            bottle_plan.append(
                 {
                     "potion_type": [0, 100, 0, 0],
-                    "quantity": numPotions,
+                    "quantity": (greenML // 100),
                 }
-            ]
-        else:
-            # Don't request anything
-            return[]
+            )
+        if blueML >= 100:
+            bottle_plan.append(
+                {
+                    "potion_type": [0, 0, 100, 0],
+                    "quantity": (blueML // 100),
+                }
+            )
+        
+        print("get_bottle_plan() returns: " + str(bottle_plan))
 
+        return bottle_plan
     
     
 
