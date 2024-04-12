@@ -140,14 +140,15 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     # Get num potions bought
     numPotionsBought = carts[cart_id][2]
     print("numPotionsBought: " + str(numPotionsBought))
-    print("FIXME, PAYMENT VALUE IS: " + cart_checkout.payment)
+    print("PAYMENT VALUE IS: " + cart_checkout.payment)
     # Get the amount of gold the customer paid (as an int)
-    goldPaid = int(cart_checkout.payment)
-    print("goldPaid: " + str(goldPaid))
+    # NOTE: don't worry about payment atm, uncomment when needed to be dynamic later
+    #goldPaid = int(cart_checkout.payment)
+    #print("goldPaid: " + str(goldPaid))
 
     with db.engine.begin() as connection:
         # Update table to reflect purchase
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potionColumnToUpdate} = {potionColumnToUpdate} - {numPotionsBought}, gold = gold + {goldPaid} WHERE id = {1}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potionColumnToUpdate} = {potionColumnToUpdate} - {numPotionsBought}, gold = gold + {40} WHERE id = {1}"))
     
     print("Returning from cart/checkout function normally, error response not triggered")
-    return {"total_potions_bought": numPotionsBought, "total_gold_paid": goldPaid}
+    return {"total_potions_bought": numPotionsBought, "total_gold_paid": 40}#goldPaid}

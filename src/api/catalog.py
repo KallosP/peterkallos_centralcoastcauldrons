@@ -20,11 +20,16 @@ def get_catalog():
         # fetchall: fetches all (or all remaining) rows of a query result set and returns a list of tuples
         rows = result.fetchall()
         # Store the row corresponding to the green potion 
-        # TODO: change from just green to generic
         potionRow = rows[0]
         numGreenPotions = potionRow[1] 
         numRedPotions = potionRow[4] 
         numBluePotions = potionRow[6] 
+
+        # NOTE: currently selling all at 40 to optimize selling at least 1 
+        # of every type of potion for a lowest possible price
+
+        # !! TODO: wait for tick to see what the payment str is, if taking too
+        # long go ahead and push these changes !!
 
         # Put up any potion for sale that's in stock
         if numRedPotions > 0:
@@ -33,7 +38,7 @@ def get_catalog():
                     "sku": "RED_POTION_0",
                     "name": "red potion",
                     "quantity": 1, #greenPotionRow[1],
-                    "price": 1,
+                    "price": 40,
                     "potion_type": [100, 0, 0, 0],
                 }
             )
@@ -49,7 +54,7 @@ def get_catalog():
                     "quantity": 1, #greenPotionRow[1],
                     # Amt I'm selling a green potion for
                     # TODO: change back to 50, just 1 temporarily for testing
-                    "price": 1,
+                    "price": 40,
                     # Color green. AKA selling green potions
                     "potion_type": [0, 100, 0, 0],
                 }
@@ -60,7 +65,7 @@ def get_catalog():
                     "sku": "BLUE_POTION_0",
                     "name": "blue potion",
                     "quantity": 1, #greenPotionRow[1],
-                    "price": 1,
+                    "price": 40,
                     "potion_type": [0, 0, 100, 0],
                 }
             )
