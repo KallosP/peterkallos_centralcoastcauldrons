@@ -19,8 +19,8 @@ def get_inventory():
             # fetchall: fetches all (or all remaining) rows of a query result set and returns a list of tuples
             rows = result.fetchall()
             # Store the row corresponding to the green potion 
-            greenPotionRow = rows[0]
-    return {"number_of_potions": greenPotionRow[1], "ml_in_barrels": greenPotionRow[2], "gold": greenPotionRow[3]}
+            potionRow = rows[0]
+    return {"number_of_potions": potionRow[1] + potionRow[4] + potionRow[6], "ml_in_barrels": potionRow[2] + potionRow[5] + potionRow[7], "gold": potionRow[3]}
 
 # Gets called once a day
 @router.post("/plan")
