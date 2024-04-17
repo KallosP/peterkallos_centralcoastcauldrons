@@ -75,6 +75,9 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         print("Red from purchase plan: " + str(numRedPotions))
         print("Blue from purchase plan: " + str(numBluePotions))
 
+        # Priorities:
+        #   1) Always be in stock
+
 
         # NOTE: !! Currently ONLY focusing on buying mini barrels !!
 
