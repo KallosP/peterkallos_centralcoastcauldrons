@@ -16,6 +16,7 @@ def get_catalog():
 
     # Open connection to DB 
     with db.engine.begin() as connection:
+        # TODO: don't use *
         result = connection.execute(sqlalchemy.text("SELECT COUNT(*) FROM potions"))
         # fetchone: fetches next row of a query result set and returns single sequence (a tuple)
         # Rows is set to: "(#,)"
@@ -26,6 +27,7 @@ def get_catalog():
         # NOTE: Python for loops start at 0
         for i in range(numRows):
             # i+1 b/c table starts with IDs at 1
+            # TODO: don't use *
             result = connection.execute(sqlalchemy.text(f"SELECT * FROM potions WHERE id = {i+1}"))
             # Current potion/row
             currPotion = result.fetchone()

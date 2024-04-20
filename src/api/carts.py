@@ -88,6 +88,7 @@ def post_visits(visit_id: int, customers: list[Customer]):
     return "OK"
 
 
+
 @router.post("/")
 def create_cart(new_cart: Customer):
     """ """
@@ -104,7 +105,13 @@ def create_cart(new_cart: Customer):
 class CartItem(BaseModel):
     quantity: int
 
-
+# db layout:
+#   when implementing cart items: 
+#   when set item quantity is called, insert a row into the cart_items table
+#   you get passed a cart id and an item sku, so you have to figure out what the right
+#   potion id is to insert
+#   - store price in potions table
+#   - sample SQL commands recommended for set item quantity in lec. notes
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """

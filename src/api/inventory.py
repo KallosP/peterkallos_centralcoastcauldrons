@@ -20,7 +20,7 @@ def get_inventory():
             globalRows = result.fetchone()
 
             gold = globalRows[1]
-            totalML = globalRows[2] + globalRows[3] + globalRows[4]
+            totalML = globalRows[2] + globalRows[3] + globalRows[4] + globalRows[5]
 
             # potions
             result2 = connection.execute(sqlalchemy.text("SELECT SUM(quantity) FROM potions"))

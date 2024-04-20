@@ -23,6 +23,7 @@ def reset():
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = {0}"))
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {0}"))
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = {0}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_dark_ml = {0}"))
 
         # potions
         # Sets quantity column's values to 0
