@@ -201,7 +201,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 # 4 = exclusive
                 randInt = random.randint(0, 4)
             else:
-                randInt = randInt(0, 3)
+                randInt = random.randint(0, 3)
 
             if randInt == 0:
                 randMlType = "RED"
