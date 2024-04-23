@@ -12,21 +12,13 @@ def get_catalog():
     Each unique item combination must have only a single price.
     """
 
-    # Why is catalog out of sync? What's on his end?
-
-    # Logic to meet v3 requirements is iffy, how will he check
-    # if my shop works? Can he decrease the tick time to be a lot quicker?
-
-    # Group project ER diagram isn't too big (task manager too small?)
-
-    # Returns a max of 6
     catalog = []
     with db.engine.begin() as connection:
-        # NOTE: inventory column was in potions table for given code in lab
         results = connection.execute(sqlalchemy.text("SELECT sku, name, quantity, price, potion_type from potions")).all()
 
         for row in results:
-            catalog.append({"sku": row.sku, "name": row.name, "quantity": row.quantity, "price": row.price, "potion_type": row.potion_type})
+            if(row.quantity > 0):
+                catalog.append({"sku": row.sku, "name": row.name, "quantity": row.quantity, "price": row.price, "potion_type": row.potion_type})
 
     print("Catalog: " + str(catalog))
     return catalog

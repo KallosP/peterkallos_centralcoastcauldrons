@@ -35,13 +35,12 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
             # json.dumps converts int list to jsonb format
             connection.execute(sqlalchemy.text(f"UPDATE potions SET quantity = quantity + {potion.quantity} WHERE potion_type = :potion_type"), [{"potion_type": json.dumps(potion.potion_type)}])
 
-            # FIXME: the indexes might be the issue with ml
             red_ml = potion.potion_type[0] * potion.quantity
             green_ml = potion.potion_type[1] * potion.quantity
             blue_ml = potion.potion_type[2] * potion.quantity
             dark_ml = potion.potion_type[3] * potion.quantity
 
-            # TODO: something off with logic when subtracting ml from database
+            # (FIXED) something was off with logic when subtracting ml from database
             #       -ex: should have 100 red ml but have 300 ml, that's where
             #               200 ml error is coming from in error msg
             #         -> you sold 2 red potions and made 100 gold in total
