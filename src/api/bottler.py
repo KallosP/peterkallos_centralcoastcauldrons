@@ -22,7 +22,7 @@ class PotionInventory(BaseModel):
 @router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
     """ """
-    print(f"potions delievered: {potions_delivered} order_id: {order_id}")
+    print(f"potions delivered: {potions_delivered} order_id: {order_id}")
 
     # Add bottles and subtract ml to databse. This is
     # where you're actually editing the values in your table.
@@ -40,39 +40,37 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
             blue_ml = potion.potion_type[2] * potion.quantity
             dark_ml = potion.potion_type[3] * potion.quantity
 
-            # (FIXED) something was off with logic when subtracting ml from database
-            #       -ex: should have 100 red ml but have 300 ml, that's where
-            #               200 ml error is coming from in error msg
-            #         -> you sold 2 red potions and made 100 gold in total
-            #               so gold updates fine, it's the ml thats the issue
-            #               also known that two customers made a purchase since yesterday
+            # data for potion_ledger/global_inventory table
+            potion_id = connection.execute(sqlalchemy.text("SELECT id FROM potions WHERE potion_type = :potion_type"), 
+                                           {"potion_type": json.dumps(potion.potion_type)}).fetchone()[0]
 
+            potion_sku = connection.execute(sqlalchemy.text("SELECT sku FROM potions WHERE potion_type = :potion_type"), 
+                                           {"potion_type": json.dumps(potion.potion_type)}).fetchone()[0]
 
+            # present_time table
+            current_time = str(connection.execute(sqlalchemy.text("SELECT time from present_time WHERE id = 1")).fetchone()[0])
+
+            # global_inventory table
             connection.execute(sqlalchemy.text(
             """
-            UPDATE global_inventory SET
-            num_red_ml = num_red_ml - :red_ml,
-            num_green_ml = num_green_ml - :green_ml,
-            num_blue_ml = num_blue_ml - :blue_ml,
-            num_dark_ml = num_dark_ml - :dark_ml
+            INSERT INTO global_inventory (num_red_ml, num_green_ml, num_blue_ml, num_dark_ml, description, changed_at)
+            VALUES
+            (:red_ml, :green_ml, :blue_ml, :dark_ml, :description, :changed_at)
             """
-            ), [{"red_ml": red_ml, "green_ml": green_ml,
-                "blue_ml": blue_ml, "dark_ml": dark_ml}])
+            ), [{"red_ml": -red_ml, "green_ml": -green_ml,
+                "blue_ml": -blue_ml, "dark_ml": -dark_ml,
+                "description": f"Bottled {potion_sku}(S)",
+                "changed_at": current_time}])
 
-            ## If a red potion
-            #if potion.potion_type[0] == 100:
-            #    # Update database
-            #    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = num_red_potions + {potion.quantity}, num_red_ml = num_red_ml - {potion.quantity * 100} WHERE id = {1}"))
-
-            ## If a green potion
-            #if potion.potion_type[1] == 100:
-            #    # Update database
-            #    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions + {potion.quantity}, num_green_ml = num_green_ml - {potion.quantity * 100} WHERE id = {1}"))
-
-            ## If a blue potion
-            #if potion.potion_type[2] == 100:
-            #    # Update database
-            #    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_potions = num_blue_potions + {potion.quantity}, num_blue_ml = num_blue_ml - {potion.quantity * 100} WHERE id = {1}"))
+            
+            connection.execute(sqlalchemy.text(
+                """
+                INSERT INTO potion_ledger (potion_id, quantity, description, changed_at)
+                VALUES
+                (:potion_id, :quantity, :description, :changed_at)
+                """
+            ), [{"potion_id": potion_id, "quantity": potion.quantity,
+                "description": f"Bottled {potion_sku}(S)", "changed_at": current_time}])
 
     return "OK"
 
@@ -90,10 +88,10 @@ def get_bottle_plan():
 
     with db.engine.begin() as connection:
         # TODO: don't use *
-        red_ml = connection.execute(sqlalchemy.text("SELECT num_red_ml FROM global_inventory WHERE id = 1")).fetchone()[0]
-        green_ml = connection.execute(sqlalchemy.text("SELECT num_green_ml FROM global_inventory WHERE id = 1")).fetchone()[0]
-        blue_ml = connection.execute(sqlalchemy.text("SELECT num_blue_ml FROM global_inventory WHERE id = 1")).fetchone()[0]
-        dark_ml = connection.execute(sqlalchemy.text("SELECT num_dark_ml FROM global_inventory WHERE id = 1")).fetchone()[0]
+        red_ml = connection.execute(sqlalchemy.text("SELECT SUM(num_red_ml) FROM global_inventory")).fetchone()[0]
+        green_ml = connection.execute(sqlalchemy.text("SELECT SUM(num_green_ml) FROM global_inventory")).fetchone()[0]
+        blue_ml = connection.execute(sqlalchemy.text("SELECT SUM(num_blue_ml) FROM global_inventory")).fetchone()[0]
+        dark_ml = connection.execute(sqlalchemy.text("SELECT SUM(num_dark_ml) FROM global_inventory")).fetchone()[0]
         # TODO: USE??
         #numGold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).fetchone()[0]
         #print("PURCHASE PLAN: Gold - " + str(numGold))

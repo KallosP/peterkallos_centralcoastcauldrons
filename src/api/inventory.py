@@ -16,19 +16,19 @@ def get_inventory():
     """ """
     with db.engine.begin() as connection:
             # global_inventory
-            result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-            globalRows = result.fetchone()
+            gold = connection.execute(sqlalchemy.text("SELECT SUM(gold) FROM global_inventory")).fetchone()[0]
 
-            gold = globalRows[1]
-            totalML = globalRows[2] + globalRows[3] + globalRows[4] + globalRows[5]
+            total_red_ml = connection.execute(sqlalchemy.text("SELECT SUM(num_red_ml) FROM global_inventory")).fetchone()[0]
+            total_green_ml = connection.execute(sqlalchemy.text("SELECT SUM(num_green_ml) FROM global_inventory")).fetchone()[0]
+            total_blue_ml = connection.execute(sqlalchemy.text("SELECT SUM(num_blue_ml) FROM global_inventory")).fetchone()[0]
+            total_dark_ml = connection.execute(sqlalchemy.text("SELECT SUM(num_dark_ml) FROM global_inventory")).fetchone()[0]
+
+            total_ml = total_red_ml + total_green_ml + total_blue_ml + total_dark_ml
 
             # potions
-            result2 = connection.execute(sqlalchemy.text("SELECT SUM(quantity) FROM potions"))
-            potionsRow = result2.fetchone()
+            totalPotions = connection.execute(sqlalchemy.text("SELECT SUM(quantity) FROM potion_ledger")).fetchone()[0]
             
-            totalPotions = potionsRow[0]
-
-    return {"number_of_potions": totalPotions, "ml_in_barrels": totalML, "gold": gold}
+    return {"number_of_potions": totalPotions, "ml_in_barrels": total_ml, "gold": gold}
 
 # Gets called once a day
 @router.post("/plan")

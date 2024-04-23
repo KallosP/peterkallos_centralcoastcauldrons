@@ -131,23 +131,6 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
         if result.rowcount == 0:
             return Response(content=f"No potion found with SKU {item_sku}", status_code=400)
 
-
-
-    # Check if you have that item_sku 
-    #if item_sku == "RED_POTION_0":
-    #    potionToSell = "num_red_potions"
-    #elif item_sku == "GREEN_POTION_0":
-    #    potionToSell = "num_green_potions"
-    #elif item_sku == "BLUE_POTION_0":
-    #    potionToSell = "num_blue_potions"
-    #else:
-    #    return Response(content="Invalid item_sku. Returned from set_item_quantity PK", status_code=400)
-
-    ## NOTE: this sets the desired potion of the customer from "" to 'potionToSell'
-    #carts[cart_id][1] = potionToSell
-    ## Store the amount the customer wants to buy
-    #carts[cart_id][2] = cart_item.quantity
-
     return "OK"
 
 
@@ -189,6 +172,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
             print(f"Update failed quantity requested exceeds stock. Cart id that failed is: {cart_id}")
             return Response(content=f"Update failed quantity requested exceeds stock. Cart id that failed is: {cart_id}", status_code=400)
 
+        # Update potions
         updatePotionresult = connection.execute(sqlalchemy.text(
             """
             UPDATE potions 
@@ -203,33 +187,70 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
             print(f"Potion update failed for cart id: {cart_id}")
             return Response(content=f"Potion update failed for cart id: {cart_id}", status_code=400)
 
-        updateGoldResult = connection.execute(sqlalchemy.text(
+        # present_time table
+        current_time = str(connection.execute(sqlalchemy.text("SELECT time from present_time WHERE id = 1")).fetchone()[0])
+
+        # Get potion_id
+        potion_id = connection.execute(sqlalchemy.text(
             """
-            UPDATE global_inventory
-            SET gold = global_inventory.gold + cart_items.quantity * potions.price
-            FROM cart_items
-            JOIN potions ON potions.id = cart_items.potion_id
-            WHERE cart_items.cart_id = :cart_id;
+            SELECT potion_id
+            FROM cart_items 
+            WHERE cart_items.cart_id = :cart_id 
             """
-            ), [{"cart_id": cart_id}])
+            ), [{"cart_id": cart_id}]).fetchone()[0]
+
+        # Insert into potion_ledger
+        connection.execute(sqlalchemy.text(
+                """
+                INSERT INTO potion_ledger (potion_id, cart_id, quantity, description, changed_at)
+                VALUES
+                (:potion_id, :cart_id, :quantity, :description, :changed_at)
+                """
+            ), [{"potion_id": potion_id, "cart_id": cart_id, "quantity": -quantityRequested,
+                "description": "Selling potion(s)", "changed_at": current_time}])
+
+        # Get the potion's price
+        potionPrice = connection.execute(sqlalchemy.text(
+                    """
+                    SELECT price
+                    FROM potions
+                    WHERE potions.id IN (
+                        SELECT potion_id
+                        FROM cart_items
+                        WHERE potions.id = cart_items.potion_id and cart_items.cart_id = :cart_id
+                    )  
+                    """
+                ), [{"cart_id": cart_id}]).fetchone()[0]
+
+        total_gold_paid = quantityRequested * potionPrice
+
+        # Insert change in gold into global_inventory
+        connection.execute(sqlalchemy.text(
+            """
+            INSERT INTO global_inventory (gold, cart_id, description, changed_at)
+            VALUES
+            (:gold, :cart_id, :description, :changed_at)
+            """
+            ), [{"gold": total_gold_paid, "cart_id": cart_id, "description": "Selling potion(s)",
+                "changed_at": current_time}])
+
+
+        #updateGoldResult = connection.execute(sqlalchemy.text(
+        #    """
+        #    UPDATE global_inventory
+        #    SET gold = global_inventory.gold + cart_items.quantity * potions.price
+        #    FROM cart_items
+        #    JOIN potions ON potions.id = cart_items.potion_id
+        #    WHERE cart_items.cart_id = :cart_id;
+        #    """
+        #    ), [{"cart_id": cart_id}])
 
         # Raise error if update didn't work
-        if updateGoldResult.rowcount == 0:
-            print(f"Gold update failed for cart id: {cart_id}")
-            return Response(content=f"Gold update failed for cart id: {cart_id}", status_code=400)
+        #if updateGoldResult.rowcount == 0:
+        #    print(f"Gold update failed for cart id: {cart_id}")
+        #    return Response(content=f"Gold update failed for cart id: {cart_id}", status_code=400)
 
-        potionPrice = connection.execute(sqlalchemy.text(
-            """
-            SELECT price
-            FROM potions
-            WHERE potions.id IN (
-                SELECT potion_id
-                FROM cart_items
-                WHERE potions.id = cart_items.potion_id and cart_items.cart_id = :cart_id
-            )  
-            """
-        ), [{"cart_id": cart_id}]).fetchone()[0]
-
+        
         #print("potion price: " + str(potionPrice))
 
     # Get the potion type to update in the table
@@ -249,4 +270,4 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     #    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potionColumnToUpdate} = {potionColumnToUpdate} - {numPotionsBought}, gold = gold + {40} WHERE id = {1}"))
     
     #print("Returning from cart/checkout function normally, error response not triggered")
-    return {"total_potions_bought": quantityRequested, "total_gold_paid": (quantityRequested * potionPrice)}
+    return {"total_potions_bought": quantityRequested, "total_gold_paid": total_gold_paid}

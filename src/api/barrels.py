@@ -25,36 +25,21 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     """ """
     print(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
 
-    # connection.execute{sqlalchemy.text{ INSERT INTO processed {job_id, type} VALUES (:order_id, 'barrels')"), [{"order_id": order_id}]}"}
-    # put the above in try block, and catch an IntegrityError and return OK (that's important) in the catch block
-    # putting in try block, allows you're implementation to be retryable, aka doesn't break
-    # your DB if there's a network issue
-
-    #try:
-    #    connection.execute(sqlalchemy.text(f"INSERT INTO processed {job_id, type} VALUES (:order_id, 'barrels')"), [{"order_id": order_id}])
-    #except IntegrityError:
-    #    return "OK"
 
     with db.engine.begin() as connection:
 
-        # this for loop is fine, what you want to change is have local variables for all fields
-        # such as gold_paid, red_ml, etc. initialize all those to 0 and in the for loop, 
-        # do the following:
-        # gold_paid += barrel_delivered.price * barrel_delivered.quantity
-        # if barrel_delivered.potion_type == [1,0,0,0]:
-        #   red_ml += barrel_delivred.ml_per_barrel * barrel_delivered.quantity
-        # do this for all types (including dark
-        # for final else block raise Exception("Invalid potion type")
-
-        # after the whole if-else block, print statement for debugging all values gold, r,g,b,d ml
         gold_paid = 0
         red_ml = 0
         green_ml = 0
         blue_ml = 0
         dark_ml = 0
 
+        total_quantity = 0
+
         for barrel_delivered in barrels_delivered:
             gold_paid += barrel_delivered.price * barrel_delivered.quantity
+
+            total_quantity += barrel_delivered.quantity
 
             if barrel_delivered.potion_type == [1,0,0,0]:
                 red_ml += barrel_delivered.ml_per_barrel * barrel_delivered.quantity
@@ -66,42 +51,20 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
                 dark_ml += barrel_delivered.ml_per_barrel * barrel_delivered.quantity
             else:
                 raise Exception("Invalid potion type")
+
+        current_time = str(connection.execute(sqlalchemy.text("SELECT time from present_time WHERE id = 1")).fetchone()[0])
+
         # next update the table:
-        print("Blue ML: " + str(blue_ml))
         connection.execute(sqlalchemy.text(
             """
-            UPDATE global_inventory SET
-            num_red_ml = num_red_ml + :red_ml,
-            num_green_ml = num_green_ml + :green_ml,
-            num_blue_ml = num_blue_ml + :blue_ml,
-            num_dark_ml = num_dark_ml + :dark_ml,
-            gold = gold - :gold_paid
+            INSERT INTO global_inventory (gold, num_red_ml, num_green_ml, num_blue_ml, num_dark_ml, description, changed_at)
+            VALUES
+            (:gold_paid, :red_ml, :green_ml, :blue_ml, :dark_ml, :description, :changed_at)
             """
             ), [{"red_ml": red_ml, "green_ml": green_ml,
                 "blue_ml": blue_ml, "dark_ml": dark_ml,
-                "gold_paid": gold_paid}])
-        
-
-        #for barrel in barrels_delivered:
-            # TODO: (CHANGE LATER for future versions) filter out all other barrels
-            # TODO: look at 4/19 lecture notes UPDATE pattern for SQL statements,
-            #       provides more efficient way of updating database without
-            #       having to make separate SQL update statements for every column
-            # Red
-            #if barrel.sku == "MINI_RED_BARREL" or barrel.sku == "SMALL_RED_BARREL" or barrel.sku == "LARGE_RED_BARREL":
-            #    # Note multiplying by barrel.quantity in case I buy more than a single barrel
-            #    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = num_red_ml + {barrel.ml_per_barrel * barrel.quantity}, gold = gold - {barrel.price * barrel.quantity} WHERE id = {1}"))
-
-            ## Green
-            #if barrel.sku == "MINI_GREEN_BARREL" or barrel.sku == "SMALL_GREEN_BARREL" or barrel.sku == "LARGE_GREEN_BARREL":
-            #    # Note multiplying by barrel.quantity in case I buy more than a single barrel
-            #    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = num_green_ml + {barrel.ml_per_barrel * barrel.quantity}, gold = gold - {barrel.price * barrel.quantity} WHERE id = {1}"))
-
-            ## Blue
-            #if barrel.sku == "MINI_BLUE_BARREL" or barrel.sku == "SMALL_BLUE_BARREL" or barrel.sku == "LARGE_BLUE_BARREL":
-            #    # Note multiplying by barrel.quantity in case I buy more than a single barrel
-            #    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = num_blue_ml + {barrel.ml_per_barrel * barrel.quantity}, gold = gold - {barrel.price * barrel.quantity} WHERE id = {1}"))
-
+                "gold_paid": -gold_paid, "description": f"Purchased {total_quantity} barrels",
+                "changed_at": current_time}])
 
     return "OK"
 
@@ -122,21 +85,19 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     purchasePlan = []
 
     with db.engine.begin() as connection:
-        # TODO: DON'T use *, instead use ordinal values (the actual names of the columns)
-        # to select columns
-        numGold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).fetchone()[0]
+        numGold = connection.execute(sqlalchemy.text("SELECT SUM(gold) FROM global_inventory")).fetchone()[0]
         print("PURCHASE PLAN: Gold = " + str(numGold))
 
-        numRedMl = connection.execute(sqlalchemy.text("SELECT num_red_ml FROM global_inventory WHERE id = 1")).fetchone()[0]
+        numRedMl = connection.execute(sqlalchemy.text("SELECT SUM(num_red_ml) FROM global_inventory")).fetchone()[0]
         print("PURCHASE PLAN: Num Red ml = " + str(numRedMl))
 
-        numGreenMl = connection.execute(sqlalchemy.text("SELECT num_green_ml FROM global_inventory WHERE id = 1")).fetchone()[0]
+        numGreenMl = connection.execute(sqlalchemy.text("SELECT SUM(num_green_ml) FROM global_inventory")).fetchone()[0]
         print("PURCHASE PLAN: Num Green ml = " + str(numGreenMl))
 
-        numBlueMl = connection.execute(sqlalchemy.text("SELECT num_blue_ml FROM global_inventory WHERE id = 1")).fetchone()[0]
+        numBlueMl = connection.execute(sqlalchemy.text("SELECT SUM(num_blue_ml) FROM global_inventory")).fetchone()[0]
         print("PURCHASE PLAN: Num Blue ml = " + str(numBlueMl))
 
-        numDarkMl = connection.execute(sqlalchemy.text("SELECT num_dark_ml FROM global_inventory WHERE id = 1")).fetchone()[0]
+        numDarkMl = connection.execute(sqlalchemy.text("SELECT SUM(num_dark_ml) FROM global_inventory")).fetchone()[0]
         print("PURCHASE PLAN: Num Dark ml = " + str(numDarkMl))
 
         # Priorities:
