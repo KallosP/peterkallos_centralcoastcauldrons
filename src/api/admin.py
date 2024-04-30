@@ -22,11 +22,11 @@ def reset():
 
         # Reset global_inventory
         # Delete all rows
-        connection.execute(sqlalchemy.text(f"DELETE FROM global_inventory_tmp"))
+        connection.execute(sqlalchemy.text(f"DELETE FROM global_inventory"))
         # Insert initial amounts
         connection.execute(sqlalchemy.text(
             """
-            INSERT INTO global_inventory_tmp (gold, num_red_ml, num_green_ml, num_blue_ml, num_dark_ml, description, changed_at)
+            INSERT INTO global_inventory (gold, num_red_ml, num_green_ml, num_blue_ml, num_dark_ml, description, changed_at)
             VALUES
             (:gold, :red_ml, :green_ml, :blue_ml, :dark_ml, :description, :changed_at)
             """

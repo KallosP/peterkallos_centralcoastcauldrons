@@ -116,9 +116,39 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         # Stop purchasing when below 60 gold
         # FIXME: Edge case where shop has no potions and gold is less than 60,
         #        then shop will get stuck: won't buy or sell (probably will never happen??)
-        if numGold < 60:
-            print("Not purchasing: " + str(purchasePlan))
-            return purchasePlan
+        if numGold < 300:
+            for barrel in wholesale_catalog:
+                # < 300 b/c potion bottling threshold/min to have in stock is 2 potions in bottler;
+                # when that gets sold will have 300 red ml left, don't buy more, buy other ml's that
+                # are at 0
+                if numRedMl < 100 and barrel.sku == "SMALL_RED_BARREL" and numGold >= barrel.price:
+                    print("Entered init red")
+                    numGold = numGold - barrel.price
+                    purchasePlan.append(
+                        {
+                            "sku": "SMALL_RED_BARREL",
+                            "quantity": 1
+                        }
+                    )
+                if numGreenMl < 100 and barrel.sku == "SMALL_GREEN_BARREL" and numGold >= barrel.price:
+                    print("Entered init green")
+                    numGold = numGold - barrel.price
+                    purchasePlan.append(
+                        {
+                            "sku": "SMALL_GREEN_BARREL",
+                            "quantity": 1
+                        }
+                    )
+                if numBlueMl < 100 and barrel.sku == "SMALL_BLUE_BARREL" and numGold >= barrel.price:
+                    print("Entered init blue")
+                    numGold = numGold - barrel.price
+                    purchasePlan.append(
+                        {
+                            "sku": "SMALL_BLUE_BARREL",
+                            "quantity": 1
+                        }
+                    )
+        # TODO: Check if capacity has been reached, don't purchase if so
 
         # If any ml type is below the threshold, this purchase plan will only restock 
         #if (numRedMl < threshold or numBlueMl < threshold or numGreenMl < threshold):
@@ -163,25 +193,25 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         #                }
         #            )
         ## FIXME: Change this to be more spread out/efficient, don't just buy one type
-        #else:
-        # If red is under threshold or has the least amount, buy red
-        if numRedMl < threshold or ((numRedMl < numBlueMl) and (numRedMl < numGreenMl)):
-            mlTypeToBuy = "RED"
-        # If blue is under threshold or has the least amount, buy blue 
-        elif numBlueMl < threshold or ((numBlueMl < numRedMl) and (numBlueMl< numGreenMl)):
-            mlTypeToBuy = "BLUE"
-        # If green is under threshold or has the least amount, buy green 
-        elif numGreenMl < threshold or ((numGreenMl < numRedMl) and (numGreenMl < numBlueMl)):
-            mlTypeToBuy = "GREEN"
-        # Otherwise choose randomly (edge case in which all ml types are exactly at the threshold)
         else:
-            randInt = random.randint(0, 3)
-            if randInt == 0:
+            # If red is under threshold or has the least amount, buy red
+            if numRedMl < threshold or ((numRedMl < numBlueMl) and (numRedMl < numGreenMl)):
                 mlTypeToBuy = "RED"
-            elif randInt == 1:
-                mlTypeToBuy = "GREEN"
-            else: 
+            # If blue is under threshold or has the least amount, buy blue 
+            elif numBlueMl < threshold or ((numBlueMl < numRedMl) and (numBlueMl< numGreenMl)):
                 mlTypeToBuy = "BLUE"
+            # If green is under threshold or has the least amount, buy green 
+            elif numGreenMl < threshold or ((numGreenMl < numRedMl) and (numGreenMl < numBlueMl)):
+                mlTypeToBuy = "GREEN"
+            # Otherwise choose randomly (edge case in which all ml types are exactly at the threshold)
+            else:
+                randInt = random.randint(0, 3)
+                if randInt == 0:
+                    mlTypeToBuy = "RED"
+                elif randInt == 1:
+                    mlTypeToBuy = "GREEN"
+                else: 
+                    mlTypeToBuy = "BLUE"
 
         # If have a good amount of gold (currently at 2000 b/c always want to only
         # spend a portion of gold and dark barrels can only be purchased
@@ -225,6 +255,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 )               
                 numGold = numGold - (amtToBuy * barrel.price)
                 print("Gold after purchase attempt: " + str(numGold))
-    print("My attempted Purchas Plan: " + str(purchasePlan))
+    print("My attempted Purchase Plan: " + str(purchasePlan))
     return purchasePlan
 
