@@ -72,26 +72,28 @@ def search_orders(
     # Number of results per page
     results_per_page = 5
 
-    # Calculate offset based on page number
-    offset = (int(search_page) - 1) * results_per_page if search_page else 0
+    if search_page == "":
+        search_page = "0"
+
+    currPage = int(search_page) * 5
 
     # Determine the column to sort by
     if sort_col is search_sort_options.customer_name:
-        order_by = carts.c.customer
+        order_by_col = carts.c.customer
     elif sort_col is search_sort_options.item_sku:
-        order_by = potions.c.sku
+        order_by_col = potions.c.sku
     elif sort_col is search_sort_options.line_item_total:
-        order_by = potions.c.price
+        order_by_col = cart_items.c.payment
     elif sort_col is search_sort_options.timestamp:
-        order_by = cart_items.c.timestamp
+        order_by_col = cart_items.c.timestamp
     else:  
         assert False
 
     # Determine the sort order
     if sort_order is search_sort_order.asc:
-        order_by = sqlalchemy.asc(order_by)
+        order_by = sqlalchemy.asc(order_by_col)
     else:  # default is desc
-        order_by = sqlalchemy.desc(order_by)
+        order_by = sqlalchemy.desc(order_by_col)
 
     # Construct the query
     stmt = (
@@ -99,8 +101,7 @@ def search_orders(
             cart_items.c.item_id,
             potions.c.sku,
             carts.c.customer,
-            # Multiply quantity they bought by price of potion to get total spent
-            (cart_items.c.quantity * potions.c.price).label('line_item_total'),
+            cart_items.c.payment, 
             cart_items.c.timestamp,
         )
         .select_from(
@@ -108,8 +109,8 @@ def search_orders(
                 .join(potions, cart_items.c.potion_id == potions.c.id)
         )
         .limit(results_per_page)  # max results is 5
-        .offset(offset)  # Skip rows for pagination
-        .order_by(order_by, cart_items.c.item_id)
+        .offset(currPage)  # Skip rows for pagination
+        .order_by(order_by, order_by_col, cart_items.c.item_id)
     )
 
 
@@ -130,15 +131,15 @@ def search_orders(
                     "line_item_id": row.item_id,
                     "item_sku": row.sku,
                     "customer_name": row.customer,
-                    "line_item_total": row.line_item_total,
+                    "line_item_total": row.payment,
                     "timestamp": row.timestamp,
                 }
             )
 
     # Return the results
     return {
-        "previous": str(int(search_page) - 1) if search_page and int(search_page) > 1 else "",
-        "next": str(int(search_page) + 1) if search_page and json else "",
+        "previous": str(int(search_page) - 1) if int(search_page) > 0 else "",
+        "next": str(int(search_page) + 1) if len(json) == 5 else "",
         "results": json,
     }
     
@@ -204,13 +205,17 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
 
 
     with db.engine.begin() as connection:
+
+        price = connection.execute(sqlalchemy.text("SELECT price FROM potions WHERE sku = :sku"), [{"sku": item_sku}]).fetchone()[0]
+
         result = connection.execute(sqlalchemy.text(
             """
-            INSERT INTO cart_items (cart_id, quantity, potion_id, timestamp) 
-            SELECT :cart_id, :quantity, potions.id, :timestamp 
+            INSERT INTO cart_items (cart_id, quantity, potion_id, timestamp, payment) 
+            SELECT :cart_id, :quantity, potions.id, :timestamp, :payment 
             FROM potions WHERE potions.sku = :item_sku
             """
-            ), [{"cart_id": cart_id, "quantity": cart_item.quantity, "item_sku": item_sku, "timestamp": datetime.utcnow().isoformat()}])
+            ), [{"cart_id": cart_id, "quantity": cart_item.quantity, "item_sku": item_sku, 
+                 "payment": price * cart_item.quantity, "timestamp": datetime.utcnow().isoformat()}])
 
         # Raise error if requested sku doesn't exist in potions table
         if result.rowcount == 0:
