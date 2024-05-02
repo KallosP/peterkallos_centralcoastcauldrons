@@ -112,6 +112,8 @@ def search_orders(
         .order_by(order_by, cart_items.c.item_id)
     )
 
+
+    # test
     # Apply filters if parameters are passed
     if customer_name != "":
         stmt = stmt.where(carts.c.customer.ilike(f"%{customer_name}%"))
