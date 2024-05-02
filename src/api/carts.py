@@ -24,6 +24,14 @@ class search_sort_order(str, Enum):
     asc = "asc"
     desc = "desc"   
 
+db_uri = os.getenv('POSTGRES_URI')
+engine = create_engine(db_uri)
+metadata = MetaData()
+
+carts = Table('carts', metadata, autoload_with=engine)
+cart_items = Table('cart_items', metadata, autoload_with=engine)
+potions = Table('potions', metadata, autoload_with=engine)
+
 @router.get("/search/", tags=["search"])
 def search_orders(
     customer_name: str = "",
@@ -57,13 +65,6 @@ def search_orders(
     time is 5 total line items.
     """
 
-    db_uri = os.getenv('POSTGRES_URI')
-    engine = create_engine(db_uri)
-    metadata = MetaData()
-
-    carts = Table('carts', metadata, autoload_with=engine)
-    cart_items = Table('cart_items', metadata, autoload_with=engine)
-    potions = Table('potions', metadata, autoload_with=engine)
 
     #for col in cart_items.c:
     #    print(f"name: {col.name} type: {col.type}")
@@ -134,8 +135,8 @@ def search_orders(
 
     # Return the results
     return {
-        "previous": str(int(search_page) - 1) if int(search_page) > 1 else "",
-        "next": str(int(search_page) + 1) if json else "",
+        "previous": str(int(search_page) - 1) if search_page and int(search_page) > 1 else "",
+        "next": str(int(search_page) + 1) if search_page and json else "",
         "results": json,
     }
     
