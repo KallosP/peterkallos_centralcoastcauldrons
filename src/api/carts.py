@@ -3,11 +3,10 @@ from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
 import sqlalchemy
+from sqlalchemy import create_engine, Table, MetaData
 from src import database as db
-import uuid
-
-# dictionary for carts: key = random id, value = list[Customer, desiredPotion, quantity] 
-carts = {}
+from datetime import datetime
+import os
 
 router = APIRouter(
     prefix="/carts",
@@ -58,19 +57,102 @@ def search_orders(
     time is 5 total line items.
     """
 
+    db_uri = os.getenv('POSTGRES_URI')
+    engine = create_engine(db_uri)
+    metadata = MetaData()
+
+    carts = Table('carts', metadata, autoload_with=engine)
+    cart_items = Table('cart_items', metadata, autoload_with=engine)
+    potions = Table('potions', metadata, autoload_with=engine)
+
+    #for col in cart_items.c:
+    #    print(f"name: {col.name} type: {col.type}")
+
+    # Number of results per page
+    results_per_page = 5
+
+    # Calculate offset based on page number
+    offset = (int(search_page) - 1) * results_per_page if search_page else 0
+
+    # Determine the column to sort by
+    if sort_col is search_sort_options.customer_name:
+        order_by = carts.c.customer
+    elif sort_col is search_sort_options.item_sku:
+        order_by = potions.c.sku
+    elif sort_col is search_sort_options.line_item_total:
+        order_by = potions.c.price
+    elif sort_col is search_sort_options.timestamp:
+        order_by = cart_items.c.timestamp
+    else:  
+        assert False
+
+    # Determine the sort order
+    if sort_order is search_sort_order.asc:
+        order_by = sqlalchemy.asc(order_by)
+    else:  # default is desc
+        order_by = sqlalchemy.desc(order_by)
+
+    # Construct the query
+    stmt = (
+        sqlalchemy.select(
+            cart_items.c.item_id,
+            potions.c.sku,
+            carts.c.customer,
+            # Multiply quantity they bought by price of potion to get total spent
+            (cart_items.c.quantity * potions.c.price).label('line_item_total'),
+            cart_items.c.timestamp,
+        )
+        .select_from(
+            cart_items.join(carts, cart_items.c.cart_id == carts.c.cart_id)
+                .join(potions, cart_items.c.potion_id == potions.c.id)
+        )
+        .limit(results_per_page)  # max results is 5
+        .offset(offset)  # Skip rows for pagination
+        .order_by(order_by, cart_items.c.item_id)
+    )
+
+    # Apply filters if parameters are passed
+    if customer_name != "":
+        stmt = stmt.where(carts.c.customer.ilike(f"%{customer_name}%"))
+    if potion_sku != "":
+        stmt = stmt.where(potions.c.sku.ilike(f"%{potion_sku}%"))
+
+    # Execute the query
+    with db.engine.connect() as conn:
+        result = conn.execute(stmt)
+        json = []
+        for row in result:
+            json.append(
+                {
+                    "line_item_id": row.item_id,
+                    "item_sku": row.sku,
+                    "customer_name": row.customer,
+                    "line_item_total": row.line_item_total,
+                    "timestamp": row.timestamp,
+                }
+            )
+
+    # Return the results
     return {
-        "previous": "",
-        "next": "",
-        "results": [
-            {
-                "line_item_id": 1,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            }
-        ],
+        "previous": str(int(search_page) - 1) if int(search_page) > 1 else "",
+        "next": str(int(search_page) + 1) if json else "",
+        "results": json,
     }
+    
+    
+    #return {
+    #    "previous": "",
+    #    "next": "",
+    #    "results": [
+    #        {
+    #            "line_item_id": 1,
+    #            "item_sku": "1 oblivion potion",
+    #            "customer_name": "Scaramouche",
+    #            "line_item_total": 50,
+    #            "timestamp": "2021-01-01T00:00:00Z",
+    #        }
+    #    ],
+    #}
 
 
 class Customer(BaseModel):
@@ -96,7 +178,7 @@ def create_cart(new_cart: Customer):
     with db.engine.begin() as connection:
         # Create a new cart for the customer by inserting them into the carts table
         result = connection.execute(sqlalchemy.text("INSERT INTO carts (customer) VALUES (:customer) RETURNING cart_id"), 
-                                    [{"customer": str(new_cart)}])
+                                    [{"customer": new_cart.customer_name}])
         # Get the current id that was generated for the current customer
         id = result.fetchone()[0]
 
@@ -121,11 +203,11 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text(
             """
-            INSERT INTO cart_items (cart_id, quantity, potion_id) 
-            SELECT :cart_id, :quantity, potions.id 
+            INSERT INTO cart_items (cart_id, quantity, potion_id, timestamp) 
+            SELECT :cart_id, :quantity, potions.id, :timestamp 
             FROM potions WHERE potions.sku = :item_sku
             """
-            ), [{"cart_id": cart_id, "quantity": cart_item.quantity, "item_sku": item_sku}])
+            ), [{"cart_id": cart_id, "quantity": cart_item.quantity, "item_sku": item_sku, "timestamp": datetime.utcnow().isoformat()}])
 
         # Raise error if requested sku doesn't exist in potions table
         if result.rowcount == 0:
