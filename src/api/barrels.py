@@ -106,23 +106,66 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         numDarkMl = connection.execute(sqlalchemy.text("SELECT SUM(num_dark_ml) FROM global_inventory")).fetchone()[0]
         print("PURCHASE PLAN: Num Dark ml = " + str(numDarkMl))
 
-        # Priorities:
-        #   1) Always be in stock
-
-
         # If any of the ml colors are at or below this threshold, buy that type
         threshold = 200
 
-        # Stop purchasing when below 60 gold
+        # Stop purchasing when below 100 gold
+        if numGold < 100:
+            print("Not purchasing: " + str(purchasePlan))
+            return purchasePlan
         # FIXME: Edge case where shop has no potions and gold is less than 60,
         #        then shop will get stuck: won't buy or sell (probably will never happen??)
-        if numGold < 300:
+        #if numGold < 300:
+            #for barrel in wholesale_catalog:
+                ## < 300 b/c potion bottling threshold/min to have in stock is 2 potions in bottler;
+                ## when that gets sold will have 300 red ml left, don't buy more, buy other ml's that
+                ## are at 0
+                #if numRedMl < 100 and barrel.sku == "SMALL_RED_BARREL" and numGold >= barrel.price:
+                    #print("Entered init red")
+                    #numGold = numGold - barrel.price
+                    #purchasePlan.append(
+                        #{
+                            #"sku": "SMALL_RED_BARREL",
+                            #"quantity": 1
+                        #}
+                    #)
+                #if numGreenMl < 100 and barrel.sku == "SMALL_GREEN_BARREL" and numGold >= barrel.price:
+                    #print("Entered init green")
+                    #numGold = numGold - barrel.price
+                    #purchasePlan.append(
+                        #{
+                            #"sku": "SMALL_GREEN_BARREL",
+                            #"quantity": 1
+                        #}
+                    #)
+                #if numBlueMl < 100 and barrel.sku == "SMALL_BLUE_BARREL" and numGold >= barrel.price:
+                    #print("Entered init blue")
+                    #numGold = numGold - barrel.price
+                    #purchasePlan.append(
+                        #{
+                            #"sku": "SMALL_BLUE_BARREL",
+                            #"quantity": 1
+                        #}
+                    #)
+        # TODO: Check if capacity has been reached, don't purchase if so
+
+        # If any ml type is below the threshold, this purchase plan will only restock 
+        if (numRedMl < threshold or numBlueMl < threshold or numGreenMl < threshold):
             for barrel in wholesale_catalog:
-                # < 300 b/c potion bottling threshold/min to have in stock is 2 potions in bottler;
-                # when that gets sold will have 300 red ml left, don't buy more, buy other ml's that
-                # are at 0
-                if numRedMl < 100 and barrel.sku == "SMALL_RED_BARREL" and numGold >= barrel.price:
-                    print("Entered init red")
+                # NOTE: Change this logic in the future to be more efficient,
+                #       intentionally blocking the purchase of barrels if i have all potion types (r,g,b) in inventory.
+                #       Basically, I'm always purchasing barrels when I don't have potions of a certain type, otherwise,don't purchase.
+                # Always prioritizes purchasing a barrel for the potions I don't have in stock
+                # NOTE: can't rely on your code ordering to prioritize certain barrel types, 
+                #       the wholesale_catalog is always ordered randomly
+
+                # If below threshold, resupply
+                # If above threshold, buy large barrel if possible
+                # TODO: improve logic to be more efficient later
+                # NOTE: blue seems to cost more for larger barrels (more valuable?)
+
+                if numRedMl < threshold and barrel.sku == "SMALL_RED_BARREL" and numGold >= barrel.price:
+                    print("Entered red")
                     numGold = numGold - barrel.price
                     purchasePlan.append(
                         {
@@ -130,8 +173,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                             "quantity": 1
                         }
                     )
-                if numGreenMl < 100 and barrel.sku == "SMALL_GREEN_BARREL" and numGold >= barrel.price:
-                    print("Entered init green")
+                if numGreenMl < threshold and barrel.sku == "SMALL_GREEN_BARREL" and numGold >= barrel.price:
+                    print("Entered green")
                     numGold = numGold - barrel.price
                     purchasePlan.append(
                         {
@@ -139,8 +182,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                             "quantity": 1
                         }
                     )
-                if numBlueMl < 100 and barrel.sku == "SMALL_BLUE_BARREL" and numGold >= barrel.price:
-                    print("Entered init blue")
+                if numBlueMl < threshold and barrel.sku == "SMALL_BLUE_BARREL" and numGold >= barrel.price:
+                    print("Entered blue")
                     numGold = numGold - barrel.price
                     purchasePlan.append(
                         {
@@ -148,113 +191,63 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                             "quantity": 1
                         }
                     )
-        # TODO: Check if capacity has been reached, don't purchase if so
-
-        # If any ml type is below the threshold, this purchase plan will only restock 
-        #if (numRedMl < threshold or numBlueMl < threshold or numGreenMl < threshold):
-        #    for barrel in wholesale_catalog:
-        #        # NOTE: Change this logic in the future to be more efficient,
-        #        #       intentionally blocking the purchase of barrels if i have all potion types (r,g,b) in inventory.
-        #        #       Basically, I'm always purchasing barrels when I don't have potions of a certain type, otherwise,don't purchase.
-        #        # Always prioritizes purchasing a barrel for the potions I don't have in stock
-        #        # NOTE: can't rely on your code ordering to prioritize certain barrel types, 
-        #        #       the wholesale_catalog is always ordered randomly
-
-        #        # If below threshold, resupply
-        #        # If above threshold, buy large barrel if possible
-        #        # TODO: improve logic to be more efficient later
-        #        # NOTE: blue seems to cost more for larger barrels (more valuable?)
-
-        #        if numRedMl < threshold and barrel.sku == "SMALL_RED_BARREL" and numGold >= barrel.price:
-        #            print("Entered red")
-        #            numGold = numGold - barrel.price
-        #            purchasePlan.append(
-        #                {
-        #                    "sku": "SMALL_RED_BARREL",
-        #                    "quantity": 1
-        #                }
-        #            )
-        #        if numGreenMl < threshold and barrel.sku == "SMALL_GREEN_BARREL" and numGold >= barrel.price:
-        #            print("Entered green")
-        #            numGold = numGold - barrel.price
-        #            purchasePlan.append(
-        #                {
-        #                    "sku": "SMALL_GREEN_BARREL",
-        #                    "quantity": 1
-        #                }
-        #            )
-        #        if numBlueMl < threshold and barrel.sku == "SMALL_BLUE_BARREL" and numGold >= barrel.price:
-        #            print("Entered blue")
-        #            numGold = numGold - barrel.price
-        #            purchasePlan.append(
-        #                {
-        #                    "sku": "SMALL_BLUE_BARREL",
-        #                    "quantity": 1
-        #                }
-        #            )
-        ## FIXME: Change this to be more spread out/efficient, don't just buy one type
+        # FIXME: Change this to be more spread out/efficient, don't just buy one type
         else:
-            # If red is under threshold or has the least amount, buy red
-            if numRedMl < threshold or ((numRedMl < numBlueMl) and (numRedMl < numGreenMl)):
+            randInt = random.randint(0, 3)
+            if randInt == 0:
                 mlTypeToBuy = "RED"
-            # If blue is under threshold or has the least amount, buy blue 
-            elif numBlueMl < threshold or ((numBlueMl < numRedMl) and (numBlueMl< numGreenMl)):
-                mlTypeToBuy = "BLUE"
-            # If green is under threshold or has the least amount, buy green 
-            elif numGreenMl < threshold or ((numGreenMl < numRedMl) and (numGreenMl < numBlueMl)):
+            elif randInt == 1:
                 mlTypeToBuy = "GREEN"
-            # Otherwise choose randomly (edge case in which all ml types are exactly at the threshold)
-            else:
-                randInt = random.randint(0, 3)
-                if randInt == 0:
-                    mlTypeToBuy = "RED"
-                elif randInt == 1:
-                    mlTypeToBuy = "GREEN"
-                else: 
-                    mlTypeToBuy = "BLUE"
+            else: 
+                mlTypeToBuy = "BLUE"
 
-        # If have a good amount of gold (currently at 2000 b/c always want to only
-        # spend a portion of gold and dark barrels can only be purchased
-        # at 750; ensuring gold amount is well over 1500), 
-        # then roll a dice to determine whether or not to change mlTypeToBuy
-        # to dark barrels
-        if numGold >= 2000:
-            # Random number from 1-100 (100 = exclusive in function)
-            randInt = random.randint(0, 100)
-            # 0-74 = don't change mlTypeToBuy
-            # 75-100 = buy dark ml
-            # => 25% chance of buying dark
-            if randInt >= 75:
-                mlTypeToBuy = "DARK"
+            # If have a good amount of gold (currently at 2000 b/c always want to only
+            # spend a portion of gold and dark barrels can only be purchased
+            # at 750; ensuring gold amount is well over 1500), 
+            # then roll a dice to determine whether or not to change mlTypeToBuy
+            # to dark barrels
+            if numGold >= 2000:
+                # Random number from 1-100 (100 = exclusive in function)
+                randInt = random.randint(0, 100)
+                # 0-74 = don't change mlTypeToBuy
+                # 75-100 = buy dark ml
+                # => 25% chance of buying dark
+                if randInt >= 75:
+                    mlTypeToBuy = "DARK"
         
         
-        for barrel in wholesale_catalog:
-            # Flooring/rounding down to stay safe with purchases
-            # TODO: Find a good number to divide by for a more efficient
-            #       way of deciding how much gold to spend. Currently
-            #       spending half of what I currently have. This will get
-            #       very inefficient with larger amounts of gold. Also when
-            #       deciding what to make this value, good idea to change the
-            #       current logic with the threshold in the if block before this
-            #       else block.
-            goldToSpend = numGold // 3
-            if goldToSpend >= barrel.price and (mlTypeToBuy in barrel.sku):
-                print("Buying extra ml from " + barrel.sku)
+            for barrel in wholesale_catalog:
+                # Flooring/rounding down to stay safe with purchases
+                # TODO: Find a good number to divide by for a more efficient
+                #       way of deciding how much gold to spend. Currently
+                #       spending half of what I currently have. This will get
+                #       very inefficient with larger amounts of gold. Also when
+                #       deciding what to make this value, good idea to change the
+                #       current logic with the threshold in the if block before this
+                #       else block.
+                if numGold < 300:
+                    # Default to just spending 100 when below 300
+                    goldToSpend = 100
+                else:
+                    # Only spend 1/3 of gold if can afford to (anything less than 300 breaks)
+                    goldToSpend = numGold // 3
+                if goldToSpend >= barrel.price and (mlTypeToBuy in barrel.sku):
+                    print("Buying extra ml from " + barrel.sku)
 
-                amtToBuy = goldToSpend // barrel.price
-                if amtToBuy > barrel.quantity:
-                    amtToBuy = barrel.quantity
+                    amtToBuy = goldToSpend // barrel.price
+                    if amtToBuy > barrel.quantity:
+                        amtToBuy = barrel.quantity
 
-                print("Amt to buy: " + str(amtToBuy))
+                    print("Amt to buy: " + str(amtToBuy))
 
-                purchasePlan.append(
-                    {
-                        "sku": barrel.sku,
-                        "quantity": amtToBuy
-                    }
-                )               
-                numGold = numGold - (amtToBuy * barrel.price)
-                print("Gold after purchase attempt: " + str(numGold))
+                    purchasePlan.append(
+                        {
+                            "sku": barrel.sku,
+                            "quantity": amtToBuy
+                        }
+                    )               
+                    numGold = numGold - (amtToBuy * barrel.price)
+                    print("Gold after purchase attempt: " + str(numGold))
     print("My attempted Purchase Plan: " + str(purchasePlan))
     return purchasePlan
 
