@@ -150,6 +150,9 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         # TODO: Check if capacity has been reached, don't purchase if so
 
         # If any ml type is below the threshold, this purchase plan will only restock 
+        numRedMl = 300
+        numGreenMl = 300
+        numBlueMl = 300
         if (numRedMl < threshold or numBlueMl < threshold or numGreenMl < threshold):
             for barrel in wholesale_catalog:
                 # NOTE: Change this logic in the future to be more efficient,
@@ -194,12 +197,15 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         # FIXME: Change this to be more spread out/efficient, don't just buy one type
         else:
             randInt = random.randint(0, 3)
+            mlTypeToBuy = "BLUE"
             if randInt == 0:
                 mlTypeToBuy = "RED"
             elif randInt == 1:
                 mlTypeToBuy = "GREEN"
-            else: 
+            elif randInt == 2: 
                 mlTypeToBuy = "BLUE"
+            else:
+                mlTypeToBuy = "RED"
 
             # If have a good amount of gold (currently at 2000 b/c always want to only
             # spend a portion of gold and dark barrels can only be purchased
