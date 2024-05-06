@@ -109,6 +109,9 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         # If any of the ml colors are at or below this threshold, buy that type
         threshold = 200
 
+        curr_total_ml = numRedMl + numGreenMl + numBlueMl
+        total_ml_to_buy = 0
+
         # Stop purchasing when below 100 gold
         if numGold < 100:
             print("Not purchasing: " + str(purchasePlan))
@@ -150,9 +153,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         # TODO: Check if capacity has been reached, don't purchase if so
 
         # If any ml type is below the threshold, this purchase plan will only restock 
-        numRedMl = 300
-        numGreenMl = 300
-        numBlueMl = 300
         if (numRedMl < threshold or numBlueMl < threshold or numGreenMl < threshold):
             for barrel in wholesale_catalog:
                 # NOTE: Change this logic in the future to be more efficient,
@@ -170,6 +170,14 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 if numRedMl < threshold and barrel.sku == "SMALL_RED_BARREL" and numGold >= barrel.price:
                     print("Entered red")
                     numGold = numGold - barrel.price
+                    total_ml_to_buy = total_ml_to_buy + barrel.ml_per_barrel
+                    print("Total Ml To Buy: " + str(total_ml_to_buy))
+                    # Final check to make sure not trying to purchase over capacity
+                    capacity = (connection.execute(sqlalchemy.text("SELECT SUM(ml_cap) FROM capacity")).fetchone()[0]) * 10000
+                    if (total_ml_to_buy + curr_total_ml) > capacity:
+                        print("Attempting to buy more ml than have capacity for, cancelling current and remaining requests.")
+                        break
+
                     purchasePlan.append(
                         {
                             "sku": "SMALL_RED_BARREL",
@@ -179,6 +187,14 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 if numGreenMl < threshold and barrel.sku == "SMALL_GREEN_BARREL" and numGold >= barrel.price:
                     print("Entered green")
                     numGold = numGold - barrel.price
+                    total_ml_to_buy = total_ml_to_buy + barrel.ml_per_barrel
+                    print("Total Ml To Buy: " + str(total_ml_to_buy))
+                    # Final check to make sure not trying to purchase over capacity
+                    capacity = (connection.execute(sqlalchemy.text("SELECT SUM(ml_cap) FROM capacity")).fetchone()[0]) * 10000
+                    if (total_ml_to_buy + curr_total_ml) > capacity:
+                        print("Attempting to buy more ml than have capacity for, cancelling current and remaining requests.")
+                        break
+
                     purchasePlan.append(
                         {
                             "sku": "SMALL_GREEN_BARREL",
@@ -188,6 +204,14 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 if numBlueMl < threshold and barrel.sku == "SMALL_BLUE_BARREL" and numGold >= barrel.price:
                     print("Entered blue")
                     numGold = numGold - barrel.price
+                    total_ml_to_buy = total_ml_to_buy + barrel.ml_per_barrel
+                    print("Total Ml To Buy: " + str(total_ml_to_buy))
+                    # Final check to make sure not trying to purchase over capacity
+                    capacity = (connection.execute(sqlalchemy.text("SELECT SUM(ml_cap) FROM capacity")).fetchone()[0]) * 10000
+                    if (total_ml_to_buy + curr_total_ml) > capacity:
+                        print("Attempting to buy more ml than have capacity for, cancelling current and remaining requests.")
+                        break
+
                     purchasePlan.append(
                         {
                             "sku": "SMALL_BLUE_BARREL",
@@ -245,6 +269,15 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                         amtToBuy = barrel.quantity
 
                     print("Amt to buy: " + str(amtToBuy))
+
+                    total_ml_to_buy = total_ml_to_buy + ((barrel.ml_per_barrel) * amtToBuy)
+                    print("Total Ml To Buy: " + str(total_ml_to_buy))
+                    # Final check to make sure not trying to purchase over capacity
+                    capacity = (connection.execute(sqlalchemy.text("SELECT SUM(ml_cap) FROM capacity")).fetchone()[0]) * 10000
+                    print("TESINGKJLKJLDG:S: " + str((total_ml_to_buy + curr_total_ml)))
+                    if (total_ml_to_buy + curr_total_ml) > capacity:
+                        print("Attempting to buy more ml than have capacity for, cancelling current request.")
+                        break
 
                     purchasePlan.append(
                         {
