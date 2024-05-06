@@ -92,6 +92,8 @@ def get_bottle_plan():
         green_ml = connection.execute(sqlalchemy.text("SELECT SUM(num_green_ml) FROM global_inventory")).fetchone()[0]
         blue_ml = connection.execute(sqlalchemy.text("SELECT SUM(num_blue_ml) FROM global_inventory")).fetchone()[0]
         dark_ml = connection.execute(sqlalchemy.text("SELECT SUM(num_dark_ml) FROM global_inventory")).fetchone()[0]
+
+        curr_num_potions = connection.execute(sqlalchemy.text("SELECT SUM(quantity) FROM potion_ledger")).fetchone()[0]
         # TODO: USE??
         #numGold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).fetchone()[0]
         #print("PURCHASE PLAN: Gold - " + str(numGold))
@@ -143,6 +145,12 @@ def get_bottle_plan():
                         #print("Blue ml: " + str(blue_ml))
                         
                 if quantityToAdd > 0:
+
+                    capacity = (connection.execute(sqlalchemy.text("SELECT SUM(potion_cap) FROM capacity")).fetchone()[0]) * 50
+                    # Final check to see if purchase would put total potions over capacity
+                    if (curr_num_potions + quantityToAdd) > capacity:
+                        print("Stop current and remaining bottling, capacity reached")
+                        break
                     bottle_plan.append(
                         {
                             "potion_type": potionType,
@@ -168,6 +176,12 @@ def get_bottle_plan():
                     green_ml -= potionType[1]
                     blue_ml -= potionType[2]
                     dark_ml -= potionType[3]
+
+                    capacity = (connection.execute(sqlalchemy.text("SELECT SUM(potion_cap) FROM capacity")).fetchone()[0]) * 50
+                    # Final check to see if purchase would put total potions over capacity
+                    if (curr_num_potions + 1) > capacity:
+                        print("Stop current and remaining bottling, capacity reached")
+                        break
 
                     bottle_plan.append(
                         {
